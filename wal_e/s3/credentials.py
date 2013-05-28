@@ -1,6 +1,6 @@
 import os
 
-from boto import util
+from boto import utils
 
 from wal_e import exception
 
@@ -147,7 +147,7 @@ def resolve_instance_profile(cred):
     else:
         assert False
 
-    md = util.get_instance_metadata()
+    md = utils.get_instance_metadata()
 
     public = md.get('AccessKeyId')
     if public is None:
