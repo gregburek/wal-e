@@ -40,13 +40,13 @@ class Credentials(object):
     """
     def __init__(self, public, private,
                  public_source, private_source):
-        assert isinstance(public_source, Source)
-        assert isinstance(private_source, Source)
+        assert issubclass(public_source, Source)
+        assert issubclass(private_source, Source)
 
         self.public = public
         self.private = private
-        self.public_source = public
-        self.private_source = private
+        self.public_source = public_source
+        self.private_source = private_source
 
     @property
     def is_complete(self):
@@ -63,7 +63,7 @@ class Credentials(object):
                  and self.public.lower() != INSTANCE_PROFILE_USER_INPUT) and
                 self.private is not None)
 
-    def maybe_complain(self):
+    def raise_on_incomplete(self):
         """Given an incomplete credential, raise a UserException
 
         This UserException should include some text to help the user
@@ -122,14 +122,14 @@ class Credentials(object):
                   'carefully to make sure keys are being passed properly'))
 
 
-def credentials_from_environment():
+def from_environment():
     return Credentials(public=os.getenv('AWS_ACCESS_KEY_ID'),
                        public_source=Environ,
                        private=os.getenv('AWS_SECRET_ACCESS_KEY'),
                        private_source=Environ)
 
 
-def credentials_from_argv(public, private):
+def from_argv(public, private):
     return Credentials(public=public,
                        private=private,
                        public_source=Argv,
