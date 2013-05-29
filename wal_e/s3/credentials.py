@@ -13,22 +13,35 @@ class Source(object):
 
 
 class Environ(Source):
-    pass
+    """Credential from environment variable."""
 
 
 class Argv(Source):
-    pass
+    """Credential from argument vector."""
 
 
 class InstanceProfileEnv(Source):
+    """Instance profile expansion.
+
+    Triggered by environment variable.
+    """
     pass
 
 
 class InstanceProfileArgv(Source):
+    """Instance profile expansion.
+
+    Triggered by argument vector.
+    """
     pass
 
 
 class IncompleteCredentials(exception.UserException):
+    """Exception raised when crendentials are verified.
+
+    Rraised when either public/private portions of the credential are
+    not available.
+    """
     pass
 
 
@@ -129,20 +142,17 @@ def from_environment():
                        private_source=Environ)
 
 
-def from_argv(public=None, private=None):
+def from_argv(public):
     return Credentials(public=public,
-                       private=private,
                        public_source=Argv,
+                       private=None,
                        private_source=Argv)
 
 
-def resolve_instance_profile(cred):
-    if cred.public != INSTANCE_PROFILE_USER_INPUT:
-        return cred
-
-    if cred.public_source is Environ:
+def from_instance_profile(public_source):
+    if public_source is Environ:
         source = InstanceProfileEnv
-    elif cred.public_source is Argv:
+    elif public_source is Argv:
         source = InstanceProfileArgv
     else:
         assert False
@@ -150,26 +160,48 @@ def resolve_instance_profile(cred):
     md = utils.get_instance_metadata()
 
     public = md.get('AccessKeyId')
-    if public is None:
-        public = cred.public
-        public_source = cred.public_source
-    else:
-        public_source = source
-
     private = md.get('SecretAccessKey')
-    if private is None:
-        private = cred.private
-        private_source = cred.private_source
-    else:
-        private_source = source
 
     cred = Credentials(public=public,
                        private=private,
-                       public_source=public_source,
-                       private_source=private_source)
+                       public_source=source,
+                       private_source=source)
 
     return cred
 
 
-class NoInstanceCredentials(exception.UserException):
-    pass
+def mask(lhs, rhs):
+    """Overlay rhs onto lhs credentials
+
+    If the rhs has an undefined credential part (i.e. public/private =
+    'None'), then fall back to the lhs's value.
+    """
+    private = rhs.private
+    private_source = rhs.private_source
+
+    if private is None:
+        private = lhs.private
+        private_source = lhs.private_source
+
+    public = rhs.public
+    public_source = rhs.public_source
+
+    if public is None:
+        public = lhs.public
+        public_source = lhs.public_source
+
+    return Credentials(public=public, private=private,
+                       public_source=public_source,
+                       private_source=private_source)
+
+
+def search_credentials(public_from_args):
+    env_cred = from_environment()
+    argv_cred = from_argv(public_from_args)
+    env_argv = mask(env_cred, argv_cred)
+
+    if env_argv.public == INSTANCE_PROFILE_USER_INPUT:
+        resolved = from_instance_profile(env_argv.public_source)
+        return mask(env_argv, resolved)
+    else:
+        return env_argv
