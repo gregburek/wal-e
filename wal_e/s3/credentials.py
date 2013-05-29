@@ -129,7 +129,7 @@ def from_environment():
                        private_source=Environ)
 
 
-def from_argv(public, private):
+def from_argv(public=None, private=None):
     return Credentials(public=public,
                        private=private,
                        public_source=Argv,
