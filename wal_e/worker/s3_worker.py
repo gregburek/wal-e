@@ -12,10 +12,12 @@ import json
 import logging
 import re
 import socket
+import sys
 import tarfile
 import tempfile
 import time
 import traceback
+
 from urlparse import urlparse
 from boto.s3.connection import (S3Connection, SubdomainCallingFormat,
                                 OrdinaryCallingFormat)
