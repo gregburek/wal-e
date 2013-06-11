@@ -39,12 +39,13 @@ def test_s3_endpoint_for_uri():
         conn.delete_bucket(bucket_name)
 
 
+def test_ordinary_calling_format_upcase():
+    """Some bucket names have to switch to an older calling format.
 
-def test_s3_endpoint_for_uri_fail():
-    'Connection exceptions in s3_endpoint_for_uri should fail gracefully.'
-    uri = 's3://invalid_bucket'
-    # Fall back to the default S3 endpoint.
-    # Cause failure by passing in an invalid connection object.
+    This case tests upper case names -- which are not allowed -- only.
+    """
+
+    uri = 's3://InvalidBucket'
     expected = 's3.amazonaws.com'
-    result = s3_worker.s3_endpoint_for_uri(uri, connection=object())
+    result = s3_worker.s3_endpoint_for_uri(uri)
     assert result == expected
