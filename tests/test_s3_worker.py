@@ -103,18 +103,17 @@ def test_get_bucket_vs_certs():
     aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
 
     # Add dots to try to trip up TLS certificate validation.
-    bucket_name = 'wal-e.test.eu-west' + aws_access_key.lower()
+    bucket_name = 'wal-e.test.dots.' + aws_access_key.lower()
 
     conn = boto.s3.connection.S3Connection(
         calling_format=boto.s3.connection.SubdomainCallingFormat())
-        #calling_format=boto.s3.connection.OrdinaryCallingFormat())
 
     with BucketCleanup(conn, bucket_name):
-        conn.create_bucket(bucket_name, location='eu-west-1')
+        conn.create_bucket(bucket_name)
 
         bucket = conn.get_bucket(bucket_name)
         bucket.get_all_keys()
-        assert bucket.get_location() == 'eu-west-1'
+
 
 def test_ordinary_calling_format_upcase():
     """Some bucket names have to switch to an older calling format.
