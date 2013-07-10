@@ -45,7 +45,8 @@ def test_s3_endpoint_for_west_uri():
     bucket_name = 'wal-e-test-west' + aws_access_key.lower()
     uri = 's3://{b}'.format(b=bucket_name)
 
-    conn = boto.s3.connection.S3Connection()
+    conn = boto.s3.connection.S3Connection(
+        calling_format=boto.s3.connection.OrdinaryCallingFormat())
 
     with BucketCleanup(conn, bucket_name):
         conn.create_bucket(bucket_name, location='us-west-1')
@@ -106,7 +107,9 @@ def test_get_bucket_vs_certs():
     bucket_name = 'wal-e.test.dots.' + aws_access_key.lower()
 
     conn = boto.s3.connection.S3Connection(
-        calling_format=boto.s3.connection.SubdomainCallingFormat())
+        #calling_format=boto.s3.connection.SubdomainCallingFormat(),
+        calling_format=boto.s3.connection.OrdinaryCallingFormat(),
+        is_secure=True)
 
     with BucketCleanup(conn, bucket_name):
         conn.create_bucket(bucket_name)

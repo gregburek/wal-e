@@ -47,6 +47,9 @@ if not boto.config.has_option('Boto', 'http_socket_timeout'):
 
     boto.config.set('Boto', 'http_socket_timeout', '5')
 
+# Never allow the user to disable certificate validation.
+boto.config.setbool('Boto','https_validate_certificates', True)
+
 
 def generic_exception_processor(exc_tup, **kwargs):
     logger.warning(
