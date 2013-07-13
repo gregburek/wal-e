@@ -1,6 +1,9 @@
 import boto
 import collections
 
+from boto import s3
+from boto.s3 import connection
+
 
 _S3_REGIONS = {
     # A map like this is actually defined in boto.s3 in newer versions of boto
@@ -63,14 +66,48 @@ def _is_mostly_subdomain_compatible(bucket_name):
             not _is_ipv4_like(bucket_name))
 
 
-CallingInfo = collections.namedtuple('CallingInfo',
-                                    ['calling_format',
+class CallingInfo(object):
+    def __init__(self, calling_format=None, region=None,
+                 ordinary_endpoint=None):
 
-                                     # Only necessarily defined if the
-                                     # calling_convention is
-                                     # OrdinaryCallingFormat.
-                                     'region',
-                                     'ordinary_endpoint'])
+        self.calling_format = calling_format
+        self.region = region
+        self.ordinary_endpoint = ordinary_endpoint
+
+    def resolve(self, aws_access_key_id, aws_secret_access_key):
+        needs_resolve = (
+            self.region is None and
+            self.calling_format is connection.OrdinaryCallingFormat)
+
+        if not needs_resolve:
+            return None
+
+        conn = connection.S3Connection(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            calling_format=connection.OrdinaryCallingFormat())
+
+        bucket = s3.Bucket(conn=conn)
+
+        try:
+            loc = bucket.get_location()
+        except boto.exception.S3ResponseError, e:
+            if e.status == 403:
+                # A 403 can be caused by IAM keys that do not
+                # permit GetBucketLocation.  To not change
+                # behavior for environments that do not have
+                # GetBucketLocation allowed, fall back to the
+                # default endpoint, preserving behavior for those
+                # using S3-Classic.
+                self.region = 'us-standard'
+                self.ordinary_endpoint = _S3_REGIONS[self.region]
+            else:
+                raise
+        else:
+            self.region = loc
+            self.ordinary_endpoint = _S3_REGIONS[loc]
+
+        return conn
 
 
 def from_bucket_name(bucket_name):
@@ -79,7 +116,7 @@ def from_bucket_name(bucket_name):
     if not mostly_ok:
         return CallingInfo(
             region='us-standard',
-            calling_format=boto.s3.connection.OrdinaryCallingFormat,
+            calling_format=connection.OrdinaryCallingFormat,
             ordinary_endpoint=_S3_REGIONS['us-standard'])
     else:
         if '.' in bucket_name:
@@ -90,7 +127,7 @@ def from_bucket_name(bucket_name):
             # Leave it to the caller to perform the API call, as to
             # avoid teaching this part of the code about credentials.
             return CallingInfo(
-                calling_format=boto.s3.connection.OrdinaryCallingFormat,
+                calling_format=connection.OrdinaryCallingFormat,
                 region=None,
                 ordinary_endpoint=None)
         else:
@@ -100,7 +137,7 @@ def from_bucket_name(bucket_name):
             # This is because there are no dots in the bucket name,
             # and no other bucket naming abnormalities either.
             return CallingInfo(
-                calling_format=boto.s3.connection.SubdomainCallingFormat,
+                calling_format=connection.SubdomainCallingFormat,
                 region=None,
                 ordinary_endpoint=None)
 
