@@ -1,3 +1,5 @@
+import boto
+
 from wal_e.s3.calling_format import (_is_mostly_subdomain_compatible,
                                      _is_ipv4_like)
 
@@ -53,3 +55,17 @@ def test_ipv4_detect():
     assert _is_ipv4_like('-1.1.1.1') is False
     assert _is_ipv4_like('-1.1.1') is False
     assert _is_ipv4_like('-1.1.1.') is False
+
+
+def test_ambivalence_about_cert_failing_domains():
+    for bn in SUBDOMAIN_OK:
+        if '.' not in bn:
+            rinfo = calling_format.from_bucket_name(bn)
+            assert (rinfo.calling_format ==
+                    boto.s3.connection.SubdomainCallingFormat)
+        else:
+            rinfo = calling_format.from_bucket_name(bn)
+            assert (rinfo.calling_format ==
+                    boto.s3.connection.OrdinaryCallingFormat)
+            assert rinfo.region is None
+            assert rinfo.ordinary_endpoint is None

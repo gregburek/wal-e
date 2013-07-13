@@ -89,8 +89,10 @@ def from_bucket_name(bucket_name):
             #
             # Leave it to the caller to perform the API call, as to
             # avoid teaching this part of the code about credentials.
-            RegionInfo(
-                calling_format=boto.s3.connection.OrdinaryCallingFormat)
+            return RegionInfo(
+                calling_format=boto.s3.connection.OrdinaryCallingFormat,
+                region=None,
+                ordinary_endpoint=None)
         else:
             # SubdomainCallingFormat can be used, with TLS,
             # world-wide, and WAL-E can be region-oblivious.
@@ -98,27 +100,8 @@ def from_bucket_name(bucket_name):
             # This is because there are no dots in the bucket name,
             # and no other bucket naming abnormalities either.
             return RegionInfo(
-                calling_format=boto.s3.connection.SubdomainCallingFormat)
-
-    if '.' in bucket_name:
-        if mostly_ok:
-            # Have to try OrdinaryCallingFormat because of TLS
-            # certificate validation issues.
-            pass
-        else:
-            # A weird bucket name, going beyond the presence of dots
-            # that mess up TLS validation.  From this, infer it is the
-            # eldest S3 region that supports them: us-standard.
-            #
-            # This may be a false inference, but there are definitely
-            # regions that will not allow one to create a
-            # DNS-incompatible name, and this approach makes a choice
-            # not to support that.
-            assert not mostly_ok
-
-            return RegionInfo(
-                region='us-standard',
-                calling_format=boto.s3.connection.OrdinaryCallingFormat(),
-                ordinary_endpoint=_S3_REGIONS['us-standard'])
+                calling_format=boto.s3.connection.SubdomainCallingFormat,
+                region=None,
+                ordinary_endpoint=None)
 
     assert False
