@@ -42,8 +42,8 @@ def test_subdomain_detect():
 
 def test_us_standard_default_for_bogus():
     for bn in SUBDOMAIN_BOGUS:
-        rinfo = calling_format.from_bucket_name(bn)
-        assert rinfo.region == 'us-standard'
+        cinfo = calling_format.from_bucket_name(bn)
+        assert cinfo.region == 'us-standard'
 
 
 def test_ipv4_detect():
@@ -60,12 +60,12 @@ def test_ipv4_detect():
 def test_ambivalence_about_cert_failing_domains():
     for bn in SUBDOMAIN_OK:
         if '.' not in bn:
-            rinfo = calling_format.from_bucket_name(bn)
-            assert (rinfo.calling_format ==
+            cinfo = calling_format.from_bucket_name(bn)
+            assert (cinfo.calling_format ==
                     boto.s3.connection.SubdomainCallingFormat)
         else:
-            rinfo = calling_format.from_bucket_name(bn)
-            assert (rinfo.calling_format ==
+            cinfo = calling_format.from_bucket_name(bn)
+            assert (cinfo.calling_format ==
                     boto.s3.connection.OrdinaryCallingFormat)
-            assert rinfo.region is None
-            assert rinfo.ordinary_endpoint is None
+            assert cinfo.region is None
+            assert cinfo.ordinary_endpoint is None

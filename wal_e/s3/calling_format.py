@@ -63,7 +63,7 @@ def _is_mostly_subdomain_compatible(bucket_name):
             not _is_ipv4_like(bucket_name))
 
 
-RegionInfo = collections.namedtuple('RegionInfo',
+CallingInfo = collections.namedtuple('CallingInfo',
                                     ['calling_format',
 
                                      # Only necessarily defined if the
@@ -77,7 +77,7 @@ def from_bucket_name(bucket_name):
     mostly_ok = _is_mostly_subdomain_compatible(bucket_name)
 
     if not mostly_ok:
-        return RegionInfo(
+        return CallingInfo(
             region='us-standard',
             calling_format=boto.s3.connection.OrdinaryCallingFormat,
             ordinary_endpoint=_S3_REGIONS['us-standard'])
@@ -89,7 +89,7 @@ def from_bucket_name(bucket_name):
             #
             # Leave it to the caller to perform the API call, as to
             # avoid teaching this part of the code about credentials.
-            return RegionInfo(
+            return CallingInfo(
                 calling_format=boto.s3.connection.OrdinaryCallingFormat,
                 region=None,
                 ordinary_endpoint=None)
@@ -99,7 +99,7 @@ def from_bucket_name(bucket_name):
             #
             # This is because there are no dots in the bucket name,
             # and no other bucket naming abnormalities either.
-            return RegionInfo(
+            return CallingInfo(
                 calling_format=boto.s3.connection.SubdomainCallingFormat,
                 region=None,
                 ordinary_endpoint=None)
