@@ -2,7 +2,6 @@ import boto
 import contextlib
 import os
 import pytest
-import traceback
 
 from wal_e.worker import s3_worker
 
@@ -96,7 +95,6 @@ def test_301_redirect():
 
     aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
     bucket_name = 'wal-e-test-west' + aws_access_key.lower()
-    uri = 's3://{b}'.format(b=bucket_name)
 
     conn = boto.s3.connection.S3Connection(
         calling_format=boto.s3.connection.OrdinaryCallingFormat())
