@@ -1,6 +1,20 @@
 import boto
 import collections
 
+
+_S3_REGIONS = {
+    # A map like this is actually defined in boto.s3 in newer versions of boto
+    # but we reproduce it here for the folks (notably, Ubuntu 12.04) on older
+    # versions.
+    'ap-northeast-1': 's3-ap-northeast-1.amazonaws.com',
+    'ap-southeast-1': 's3-ap-southeast-1.amazonaws.com',
+    'ap-southeast-2': 's3-ap-southeast-2.amazonaws.com',
+    'eu-west-1': 's3-eu-west-1.amazonaws.com',
+    'us-standard': 's3.amazonaws.com',
+    'us-west-1': 's3-us-west-1.amazonaws.com',
+    'us-west-2': 's3-us-west-2.amazonaws.com',
+}
+
 try:
     # Override the hard-coded region map with boto's mappings if
     # available.
@@ -28,7 +42,13 @@ def _is_ipv4_like(s):
     return True
 
 
-def _is_subdomain_convention_ok(bucket_name):
+def _is_mostly_subdomain_compatible(bucket_name):
+    """Returns True if SubdomainCallingFormat can be used...mostly
+
+    This checks to make sure that putting aside certificate validation
+    issues that a bucket_name is able to use the
+    SubdomainCallingFormat.
+    """
     return (bucket_name.lower() == bucket_name and
             len(bucket_name) >= 3 and
             len(bucket_name) <= 63 and
@@ -39,8 +59,9 @@ def _is_subdomain_convention_ok(bucket_name):
             not bucket_name.startswith('-') and
             not bucket_name.endswith('-') and
             not bucket_name.startswith('.') and
-            not bucket_name.endswith('.')
-            and not _is_ipv4_like(bucket_name))
+            not bucket_name.endswith('.') and
+            not _is_ipv4_like(bucket_name))
+
 
 RegionInfo = collections.namedtuple('RegionInfo',
                                     ['calling_format',
@@ -52,12 +73,52 @@ RegionInfo = collections.namedtuple('RegionInfo',
                                      'ordinary_endpoint'])
 
 
-def calling_format_from_bucket_name(bucket_name):
-    if _is_subdomain_convention_ok(bucket_name):
-        return RegionInfo(
-            calling_format=boto.s3.connection.SubdomainCallingFormat())
-    else:
+def from_bucket_name(bucket_name):
+    mostly_ok = _is_mostly_subdomain_compatible(bucket_name)
+
+    if not mostly_ok:
         return RegionInfo(
             region='us-standard',
-            calling_format=boto.s3.connection.OrdinaryCallingFormat(),
-            ordinary_endpoint='s3.amazonaws.com')
+            calling_format=boto.s3.connection.OrdinaryCallingFormat,
+            ordinary_endpoint=_S3_REGIONS['us-standard'])
+    else:
+        if '.' in bucket_name:
+            # The bucket_name might have been DNS compatible, but once
+            # dots are involved TLS certificate validations will
+            # certainly fail even if that's the case.
+            #
+            # Leave it to the caller to perform the API call, as to
+            # avoid teaching this part of the code about credentials.
+            RegionInfo(
+                calling_format=boto.s3.connection.OrdinaryCallingFormat)
+        else:
+            # SubdomainCallingFormat can be used, with TLS,
+            # world-wide, and WAL-E can be region-oblivious.
+            #
+            # This is because there are no dots in the bucket name,
+            # and no other bucket naming abnormalities either.
+            return RegionInfo(
+                calling_format=boto.s3.connection.SubdomainCallingFormat)
+
+    if '.' in bucket_name:
+        if mostly_ok:
+            # Have to try OrdinaryCallingFormat because of TLS
+            # certificate validation issues.
+            pass
+        else:
+            # A weird bucket name, going beyond the presence of dots
+            # that mess up TLS validation.  From this, infer it is the
+            # eldest S3 region that supports them: us-standard.
+            #
+            # This may be a false inference, but there are definitely
+            # regions that will not allow one to create a
+            # DNS-incompatible name, and this approach makes a choice
+            # not to support that.
+            assert not mostly_ok
+
+            return RegionInfo(
+                region='us-standard',
+                calling_format=boto.s3.connection.OrdinaryCallingFormat(),
+                ordinary_endpoint=_S3_REGIONS['us-standard'])
+
+    assert False

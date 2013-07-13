@@ -1,5 +1,47 @@
-from wal_e.s3.calling_format import (_is_ipv4_like,
-                                     _is_subdomain_convention_ok)
+from wal_e.s3.calling_format import (_is_mostly_subdomain_compatible,
+                                     _is_ipv4_like)
+
+from wal_e.s3 import calling_format
+
+
+SUBDOMAIN_BOGUS = [
+    '1.2.3.4',
+    'myawsbucket.',
+    'myawsbucket-.',
+    'my.-awsbucket',
+    '.myawsbucket',
+    'myawsbucket-',
+    '-myawsbucket',
+    'my_awsbucket',
+    'my..examplebucket',
+
+    # Too short.
+    'sh',
+
+    # Too long.
+    'long' * 30,
+]
+
+SUBDOMAIN_OK = [
+    'myawsbucket',
+    'my-aws-bucket',
+    'myawsbucket.1',
+    'my.aws.bucket'
+]
+
+
+def test_subdomain_detect():
+    for bn in SUBDOMAIN_OK:
+        assert _is_mostly_subdomain_compatible(bn) is True
+
+    for bn in SUBDOMAIN_BOGUS:
+        assert _is_mostly_subdomain_compatible(bn) is False
+
+
+def test_us_standard_default_for_bogus():
+    for bn in SUBDOMAIN_BOGUS:
+        rinfo = calling_format.from_bucket_name(bn)
+        assert rinfo.region == 'us-standard'
 
 
 def test_ipv4_detect():
@@ -11,13 +53,3 @@ def test_ipv4_detect():
     assert _is_ipv4_like('-1.1.1.1') is False
     assert _is_ipv4_like('-1.1.1') is False
     assert _is_ipv4_like('-1.1.1.') is False
-
-
-def test_subdomain_detect():
-    assert _is_subdomain_convention_ok('myawsbucket') is True
-    assert _is_subdomain_convention_ok('my.aws.bucket') is True
-    assert _is_subdomain_convention_ok('myawsbucket.1') is True
-
-    assert _is_subdomain_convention_ok('1.2.3.4') is False
-    assert _is_subdomain_convention_ok('myawsbucket.') is False
-    assert _is_subdomain_convention_ok('my..examplebucket') is False
