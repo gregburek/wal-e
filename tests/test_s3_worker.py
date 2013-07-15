@@ -24,13 +24,16 @@ def test_s3_endpoint_for_west_uri():
     import boto.s3.connection
 
     aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    bucket_name = 'wal-e-test-west' + aws_access_key.lower()
+    bucket_name = 'wal-e-test-us-west-1' + aws_access_key.lower()
     uri = 's3://{b}'.format(b=bucket_name)
 
-    with FreshBucket(bucket_name, location='us-west-1',
-                     calling_format=SubdomainCallingFormat()):
-        expected = 's3-us-west-1.amazonaws.com'
+    with FreshBucket(bucket_name,
+                     host='s3-us-west-1.amazonaws.com',
+                     calling_format=OrdinaryCallingFormat()) as fb:
+        fb.create(location='us-west-1')
         result = s3_worker.s3_endpoint_for_uri(uri)
+
+        expected = 's3-us-west-1.amazonaws.com'
 
         assert result == expected
 
@@ -45,13 +48,13 @@ def test_301_redirect():
     import boto.s3.connection
 
     aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    bucket_name = 'wal-e-test-west' + aws_access_key.lower()
+    bucket_name = 'wal-e-test-301-redirect' + aws_access_key.lower()
 
     with pytest.raises(boto.exception.S3ResponseError) as e:
          # Just initiating the bucket manipulation API calls is enough
          # to provoke a 301 redirect.
-        with FreshBucket(bucket_name, location='us-west-1',
-                         calling_format=SubdomainCallingFormat()):
+        with FreshBucket(bucket_name,
+                         calling_format=OrdinaryCallingFormat()) as fb:
             pass
 
     assert e.value.status == 301

@@ -67,12 +67,19 @@ def _is_mostly_subdomain_compatible(bucket_name):
 
 
 class CallingInfo(object):
-    def __init__(self, calling_format=None, region=None,
+    def __init__(self, bucket_name=None, calling_format=None, region=None,
                  ordinary_endpoint=None):
-
+        self.bucket_name = bucket_name
         self.calling_format = calling_format
         self.region = region
         self.ordinary_endpoint = ordinary_endpoint
+
+    def __repr__(self):
+        return ('CallingInfo({bucket_name}, {calling_format!r}, {region!r}, '
+                '{ordinary_endpoint!r})'.format(**self.__dict__))
+
+    def __str__(self):
+        return repr(self)
 
     def resolve(self, aws_access_key_id, aws_secret_access_key):
         needs_resolve = (
@@ -87,7 +94,8 @@ class CallingInfo(object):
             aws_secret_access_key=aws_secret_access_key,
             calling_format=connection.OrdinaryCallingFormat())
 
-        bucket = s3.Bucket(conn=conn)
+        bucket = s3.bucket.Bucket(connection=conn,
+                                  name=self.bucket_name)
 
         try:
             loc = bucket.get_location()
@@ -115,6 +123,7 @@ def from_bucket_name(bucket_name):
 
     if not mostly_ok:
         return CallingInfo(
+            bucket_name=bucket_name,
             region='us-standard',
             calling_format=connection.OrdinaryCallingFormat,
             ordinary_endpoint=_S3_REGIONS['us-standard'])
@@ -127,6 +136,7 @@ def from_bucket_name(bucket_name):
             # Leave it to the caller to perform the API call, as to
             # avoid teaching this part of the code about credentials.
             return CallingInfo(
+                bucket_name=bucket_name,
                 calling_format=connection.OrdinaryCallingFormat,
                 region=None,
                 ordinary_endpoint=None)
@@ -137,6 +147,7 @@ def from_bucket_name(bucket_name):
             # This is because there are no dots in the bucket name,
             # and no other bucket naming abnormalities either.
             return CallingInfo(
+                bucket_name=bucket_name,
                 calling_format=connection.SubdomainCallingFormat,
                 region=None,
                 ordinary_endpoint=None)

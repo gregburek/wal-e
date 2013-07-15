@@ -29,9 +29,7 @@ def apathetic_bucket_delete(bucket_name, *args, **kwargs):
     return conn
 
 
-def insistent_bucket_delete(bucket_name, *args, **kwargs):
-    conn = boto.s3.connection.S3Connection(*args, **kwargs)
-
+def insistent_bucket_delete(conn, bucket_name):
     while True:
         try:
             conn.delete_bucket(bucket_name)
@@ -42,6 +40,8 @@ def insistent_bucket_delete(bucket_name, *args, **kwargs):
                 continue
             else:
                 raise
+
+        break
     
 
 def insistent_bucket_create(conn, bucket_name, *args, **kwargs):
@@ -56,47 +56,39 @@ def insistent_bucket_create(conn, bucket_name, *args, **kwargs):
 
             raise
 
-        break
+        return bucket
 
 
 class FreshBucket(object):
+
     def __init__(self, bucket_name, *args, **kwargs):
         self.bucket_name = bucket_name
         self.conn_args = args
         self.conn_kwargs = kwargs
+        self.created_bucket = False
 
     def __enter__(self):
         # Clean up a dangling bucket from a previous test run, if
         # necessary.
         self.conn = apathetic_bucket_delete(self.bucket_name,
-                                            self.conn_args,
-                                            self.conn_kwargs)
+                                            *self.conn_args,
+                                            **self.conn_kwargs)
 
         return self
 
-    def create(*args, **kwargs):
-        insistent_bucket_create(self._conn, self.bucket_name, *args, **kwargs)
+    def create(self, *args, **kwargs):
+        bucket = insistent_bucket_create(self.conn, self.bucket_name,
+                                         *args, **kwargs)
+        self.created_bucket = True
 
-    def 
+        return bucket
 
-        
-@contextlib.contextmanager
-def FreshBucket(bucket_name, *args, **kwargs):
-    if 'location' in kwargs:
-        kwargs_sans_location = kwargs.copy()
-        del kwargs_sans_location['location']
-    else:
-        
-        
-    # Clean up a dangling bucket from a previous test run, if
-    # necessary.
-    apathetic_bucket_delete(bucket_name, *args, **kwargs)
 
-    # Create the desired bucket.
-    insistent_bucket_create(bucket_name, *args, **kwargs)
+    def __exit__(self, typ, value, traceback):
+        if not self.created_bucket:
+            return
 
-    # Begin test execution.
-    yield bucket
+        insistent_bucket_delete(self.conn, self.bucket_name)
 
-    # Delete the bucket again to clean up.
-    insistent_bucket_delete(bucket_name, *args, **kwargs)
+        if typ:
+            raise typ, value, traceback
