@@ -1,5 +1,3 @@
-import boto
-import contextlib
 import os
 import pytest
 
@@ -8,10 +6,14 @@ from boto.s3.connection import (
     SubdomainCallingFormat,
 )
 from s3_integration_help import (
-    no_real_s3_credentials,
     FreshBucket,
+    no_real_s3_credentials,
 )
 from wal_e.worker import s3_worker
+
+# Contrivance to quiet down pyflakes, since pytest does some
+# string-evaluation magic in test collection.
+no_real_s3_credentials = no_real_s3_credentials
 
 
 @pytest.mark.skipif("no_real_s3_credentials()")
@@ -21,8 +23,6 @@ def test_s3_endpoint_for_west_uri():
     AWS credentials and WALE_S3_INTEGRATION_TESTS must be set to run
     this test.
     """
-    import boto.s3.connection
-
     aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
     bucket_name = 'wal-e-test-us-west-1' + aws_access_key.lower()
     uri = 's3://{b}'.format(b=bucket_name)
@@ -53,8 +53,7 @@ def test_301_redirect():
     with pytest.raises(boto.exception.S3ResponseError) as e:
          # Just initiating the bucket manipulation API calls is enough
          # to provoke a 301 redirect.
-        with FreshBucket(bucket_name,
-                         calling_format=OrdinaryCallingFormat()) as fb:
+        with FreshBucket(bucket_name, calling_format=OrdinaryCallingFormat()):
             pass
 
     assert e.value.status == 301

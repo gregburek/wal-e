@@ -1,5 +1,4 @@
 import boto
-import contextlib
 import os
 
 
@@ -42,7 +41,7 @@ def insistent_bucket_delete(conn, bucket_name):
                 raise
 
         break
-    
+
 
 def insistent_bucket_create(conn, bucket_name, *args, **kwargs):
     while True:
@@ -82,7 +81,6 @@ class FreshBucket(object):
         self.created_bucket = True
 
         return bucket
-
 
     def __exit__(self, typ, value, traceback):
         if not self.created_bucket:
