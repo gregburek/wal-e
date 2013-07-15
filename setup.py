@@ -31,9 +31,9 @@ install_requires = [
     if l and not l.startswith('#')]
 
 tests_require = [
-    "tox",
-    "pytest>=2.2.1",
     "pytest-capturelog>=0.7",
+    "pytest>=2.2.1",
+    "tox",
 ]
 
 if sys.version_info < (2, 7):
