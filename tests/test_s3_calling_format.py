@@ -44,6 +44,7 @@ no_real_s3_credentials = no_real_s3_credentials
 
 
 def test_subdomain_detect():
+    """Exercie subdomain compatible/incompatible bucket names."""
     for bn in SUBDOMAIN_OK:
         assert _is_mostly_subdomain_compatible(bn) is True
 
@@ -52,12 +53,23 @@ def test_subdomain_detect():
 
 
 def test_us_standard_default_for_bogus():
+    """Test degradation to us-standard for all weird bucket names.
+
+    Such bucket names are not supported outside of us-standard by
+    WAL-E.
+    """
     for bn in SUBDOMAIN_BOGUS:
         cinfo = calling_format.from_bucket_name(bn)
         assert cinfo.region == 'us-standard'
 
 
 def test_cert_validation_sensitivity():
+    """Test degradation of dotted bucket names to OrdinaryCallingFormat
+
+    Although legal bucket names with SubdomainCallingFormat, these
+    kinds of bucket names run afoul certification validation, and so
+    they are forced to fall back to OrdinaryCallingFormat.
+    """
     for bn in SUBDOMAIN_OK:
         if '.' not in bn:
             cinfo = calling_format.from_bucket_name(bn)
@@ -74,6 +86,12 @@ def test_cert_validation_sensitivity():
 
 @pytest.mark.skipif("no_real_s3_credentials()")
 def test_real_get_location():
+    """Exercise a case where a get location call is needed.
+
+    In cases where a bucket has offensive characters, like dots, that
+    would otherwise break TLS, test the sniffing the right endpoint
+    that can be used to address the bucket.
+    """
     aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
     bucket_name = 'wal-e-test-us-west-1.get.location.' + aws_access_key.lower()
 
@@ -94,6 +112,11 @@ def test_real_get_location():
 
 
 def test_ipv4_detect():
+    """IPv4 lookalikes are not valid SubdomainCallingFormat names
+
+    Even though they otherwise follow the bucket naming rules,
+    IPv4-alike names are called out as specifically banned.
+    """
     assert _is_ipv4_like('1.1.1.1') is True
 
     assert _is_ipv4_like('1.1.1.256') is False
