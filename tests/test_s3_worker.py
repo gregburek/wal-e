@@ -6,6 +6,7 @@ from boto.s3.connection import (
     SubdomainCallingFormat,
 )
 from s3_integration_help import (
+    boto_supports_certs,
     FreshBucket,
     no_real_s3_credentials,
 )
@@ -14,6 +15,7 @@ from wal_e.worker import s3_worker
 # Contrivance to quiet down pyflakes, since pytest does some
 # string-evaluation magic in test collection.
 no_real_s3_credentials = no_real_s3_credentials
+boto_supports_certs = boto_supports_certs
 
 
 @pytest.mark.skipif("no_real_s3_credentials()")
@@ -89,6 +91,7 @@ def test_s3_endpoint_for_upcase_bucket(monkeypatch):
 
 
 @pytest.mark.skipif("no_real_s3_credentials()")
+@pytest.mark.skipif("not boto_supports_certs()")
 def test_get_bucket_vs_certs():
     """Integration test for bucket naming issues
 

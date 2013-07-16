@@ -33,7 +33,7 @@ install_requires = [
 tests_require = [
     "pytest-capturelog>=0.7",
     "pytest>=2.2.1",
-    "tox",
+    "tox>=1.4.2",
 ]
 
 if sys.version_info < (2, 7):

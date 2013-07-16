@@ -1,5 +1,4 @@
 import boto
-import collections
 
 from boto import s3
 from boto.s3 import connection

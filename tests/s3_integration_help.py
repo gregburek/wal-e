@@ -12,6 +12,10 @@ def no_real_s3_credentials():
     return False
 
 
+def boto_supports_certs():
+    return boto.__version__ >= '2.6.0'
+
+
 def apathetic_bucket_delete(bucket_name, *args, **kwargs):
     conn = boto.s3.connection.S3Connection(*args, **kwargs)
 
@@ -67,6 +71,10 @@ class FreshBucket(object):
         self.created_bucket = False
 
     def __enter__(self):
+        # Prefer using certs, when possible.
+        if boto_supports_certs():
+            self.conn_kwargs.setdefault('validate_certs', True)
+
         # Clean up a dangling bucket from a previous test run, if
         # necessary.
         self.conn = apathetic_bucket_delete(self.bucket_name,
