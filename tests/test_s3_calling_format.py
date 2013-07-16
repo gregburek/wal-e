@@ -148,3 +148,36 @@ def test_ipv4_detect():
     assert _is_ipv4_like('-1.1.1.1') is False
     assert _is_ipv4_like('-1.1.1') is False
     assert _is_ipv4_like('-1.1.1.') is False
+
+
+def test_str_repr_call_info():
+    """Ensure CallingInfo renders sensibly.
+
+    Try a few cases sensitive to the bucket name.
+    """
+    if boto.__version__ <= '2.2.0':
+        pytest.skip('Class name output is unstable on older boto versions')
+
+    cinfo = calling_format.from_bucket_name('hello-world')
+    assert repr(cinfo) == str(cinfo)
+    assert repr(cinfo) == (
+        "CallingInfo(hello-world, "
+        "<class 'boto.s3.connection.SubdomainCallingFormat'>, "
+        "None, None)"
+    )
+
+    cinfo = calling_format.from_bucket_name('hello.world')
+    assert repr(cinfo) == str(cinfo)
+    assert repr(cinfo) == (
+        "CallingInfo(hello.world, "
+        "<class 'boto.s3.connection.OrdinaryCallingFormat'>, "
+        "None, None)"
+    )
+
+    cinfo = calling_format.from_bucket_name('Hello-World')
+    assert repr(cinfo) == str(cinfo)
+    assert repr(cinfo) == (
+        "CallingInfo(Hello-World, "
+        "<class 'boto.s3.connection.OrdinaryCallingFormat'>, "
+        "'us-standard', 's3.amazonaws.com')"
+    )
