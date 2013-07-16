@@ -20,8 +20,6 @@ import time
 import traceback
 
 from urlparse import urlparse
-from boto.s3.connection import (S3Connection, SubdomainCallingFormat,
-                                OrdinaryCallingFormat)
 
 import wal_e.storage.s3_storage as s3_storage
 import wal_e.log_help as log_help
@@ -173,12 +171,7 @@ def uri_to_key(aws_access_key_id, aws_secret_access_key, s3_uri):
     cinfo = calling_format.from_bucket_name(bucket_name)
     conn = cinfo.connect(aws_access_key_id, aws_secret_access_key)
     bucket = boto.s3.bucket.Bucket(connection=conn, name=bucket_name)
-    k = boto.s3.key.Key(bucket=bucket, name=url_tup.path)
-
-    if content_encoding is not None:
-        k.content_type = content_encoding
-
-    return k
+    return boto.s3.key.Key(bucket=bucket, name=url_tup.path)
 
 
 def format_kib_per_second(start, finish, amount_in_bytes):

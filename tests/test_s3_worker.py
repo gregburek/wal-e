@@ -10,7 +10,6 @@ from s3_integration_help import (
     FreshBucket,
     no_real_s3_credentials,
 )
-from wal_e.worker import s3_worker
 
 # Contrivance to quiet down pyflakes, since pytest does some
 # string-evaluation magic in test collection.
