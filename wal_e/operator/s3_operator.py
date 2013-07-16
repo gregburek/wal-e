@@ -399,6 +399,7 @@ class S3Backup(object):
                         'state': 'begin'})
 
         ret = s3_worker.do_lzop_s3_get(
+            self.aws_access_key_id, self.aws_secret_access_key,
             s3_url, wal_destination, self.gpg_key_id is not None)
 
         logger.info(
