@@ -86,9 +86,11 @@ def test_real_get_location():
                      host='s3-us-west-1.amazonaws.com',
                      calling_format=connection.OrdinaryCallingFormat()) as fb:
         fb.create(location='us-west-1')
-        cinfo.resolve(aws_access_key_id, aws_secret_access_key)
+        conn = cinfo.connect(aws_access_key_id, aws_secret_access_key)
+
         assert cinfo.region == 'us-west-1'
         assert cinfo.calling_format is connection.OrdinaryCallingFormat
+        assert conn.host == 's3-us-west-1.amazonaws.com'
 
 
 def test_ipv4_detect():
