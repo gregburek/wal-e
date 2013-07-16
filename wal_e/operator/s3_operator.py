@@ -358,7 +358,9 @@ class S3Backup(object):
         # in archive_status.
         xlog_dir = path.dirname(wal_path)
         segment = worker.WalSegment(wal_path, explicit=True)
-        uploader = s3_worker.WalUploader(self.s3_prefix, self.gpg_key_id)
+        uploader = s3_worker.WalUploader(self.aws_access_key_id,
+                                         self.aws_secret_access_key
+                                         self.s3_prefix, self.gpg_key_id)
         group = worker.WalTransferGroup(uploader)
         group.start(segment)
 
