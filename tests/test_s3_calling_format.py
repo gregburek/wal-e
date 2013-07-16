@@ -150,6 +150,51 @@ def test_ipv4_detect():
     assert _is_ipv4_like('-1.1.1.') is False
 
 
+@pytest.mark.skipif("no_real_s3_credentials()")
+def test_get_location_errors(monkeypatch):
+    """Simulate situations where get_location fails
+
+    Exercise both the case where IAM refuses the privilege to get the
+    bucket location and where some other S3ResponseError is raised
+    instead.
+    """
+    bucket_name = 'wal-e.test.403.get.location'
+
+    def just_403(self):
+        raise boto.exception.S3ResponseError(status=403,
+                                             reason=None, body=None)
+
+    def unhandled_404(self):
+        raise boto.exception.S3ResponseError(status=404,
+                                             reason=None, body=None)
+
+    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+
+    with FreshBucket(bucket_name,
+                     calling_format=connection.OrdinaryCallingFormat()):
+        cinfo = calling_format.from_bucket_name(bucket_name)
+
+        # Provoke a 403 when trying to get the bucket location.
+        monkeypatch.setattr(boto.s3.bucket.Bucket, 'get_location', just_403)
+        cinfo.connect(aws_access_key_id, aws_secret_access_key)
+
+        assert cinfo.region == 'us-standard'
+        assert cinfo.calling_format is connection.OrdinaryCallingFormat
+
+        cinfo = calling_format.from_bucket_name(bucket_name)
+
+        # Provoke an unhandled S3ResponseError, in this case 404 not
+        # found.
+        monkeypatch.setattr(boto.s3.bucket.Bucket, 'get_location',
+                            unhandled_404)
+
+        with pytest.raises(boto.exception.S3ResponseError) as e:
+            cinfo.connect(aws_access_key_id, aws_secret_access_key)
+
+        assert e.value.status == 404
+
+
 def test_str_repr_call_info():
     """Ensure CallingInfo renders sensibly.
 
