@@ -148,13 +148,15 @@ class S3Backup(object):
             msg='start upload postgres version metadata',
             detail=('Uploading to {extended_version_url}.'
                     .format(extended_version_url=extended_version_url)))
-        s3_worker.uri_put_file(extended_version_url, StringIO(version),
+        s3_worker.uri_put_file(self.aws_access_key_id,
+                               self.aws_secret_access_key,
+                               extended_version_url, StringIO(version),
                                content_encoding='text/plain')
         logger.info(msg='postgres version metadata upload complete')
 
-        uploader = s3_worker.PartitionUploader(backup_s3_prefix,
-                                               per_process_limit,
-                                               self.gpg_key_id)
+        uploader = s3_worker.PartitionUploader(
+            self.aws_access_key_id, self.aws_secret_access_key,
+            backup_s3_prefix, per_process_limit, self.gpg_key_id)
 
         pool = worker.TarUploadPool(uploader, pool_size)
 
@@ -333,6 +335,7 @@ class S3Backup(object):
             # bump).
             sentinel_content.seek(0)
             s3_worker.uri_put_file(
+                self.aws_access_key_id, self.aws_secret_access_key,
                 uploaded_to + '_backup_stop_sentinel.json',
                 sentinel_content, content_encoding='application/json')
         else:
