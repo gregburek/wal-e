@@ -27,6 +27,7 @@ except ImportError:
 
 
 def _is_ipv4_like(s):
+    """Find if a string looks like an IPv4 address."""
     parts = s.split('.')
 
     if len(parts) != 4:
@@ -86,6 +87,8 @@ def _connect_secureish(*args, **kwargs):
 
 
 class CallingInfo(object):
+    """Encapsulate information used to produce a S3Connection."""
+
     def __init__(self, bucket_name=None, calling_format=None, region=None,
                  ordinary_endpoint=None):
         self.bucket_name = bucket_name
@@ -101,13 +104,24 @@ class CallingInfo(object):
         return repr(self)
 
     def connect(self, aws_access_key_id, aws_secret_access_key):
+        """Return a boto S3Connection set up with great care.
+
+        This includes TLS settings, calling format selection, and
+        region detection.
+
+        The credentials are applied by the caller because in many
+        cases (instance-profile IAM) it is possible for those
+        credentials to fluctuate rapidly.  By comparison, region
+        fluctuations of a bucket name are not nearly so likely versus
+        the gains of not looking up a bucket's region over and over.
+        """
         def _conn_help(*args, **kwargs):
             return _connect_secureish(
-                 *args,
-                 aws_access_key_id=aws_access_key_id,
-                 aws_secret_access_key=aws_secret_access_key,
-                 calling_format=self.calling_format(),
-                 **kwargs)
+                *args,
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                calling_format=self.calling_format(),
+                **kwargs)
 
         # Check if subdomain format compatible; no need to go through
         # nay region detection mumbo-jumbo of any kind.
@@ -159,6 +173,12 @@ class CallingInfo(object):
 
 
 def from_bucket_name(bucket_name):
+    """Construct a CallingInfo value from a bucket name.
+
+    This is useful to encapsulate the ugliness of setting up S3
+    connections, especially with regions and TLS certificates are
+    involved.
+    """
     mostly_ok = _is_mostly_subdomain_compatible(bucket_name)
 
     if not mostly_ok:
