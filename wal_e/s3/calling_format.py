@@ -68,9 +68,10 @@ def _is_mostly_subdomain_compatible(bucket_name):
 def _connect_secureish(*args, **kwargs):
     """Connect using the safest available options.
 
-    This turns on encryption (for all supported boto versions) and
-    certificate validation (in versions of boto where it works) *when
-    possible*.
+    This turns on encryption (works in all supported boto versions)
+    and certificate validation (in the subset of supported boto
+    versions that can handle certificate validation, namely, those
+    after 2.6.0).
 
     Versions below 2.6 don't support the validate_certs option to
     S3Connection, and enable it via configuration option just seems to
