@@ -111,6 +111,29 @@ def test_real_get_location():
         assert conn.host == 's3-us-west-1.amazonaws.com'
 
 
+@pytest.mark.skipif("no_real_s3_credentials()")
+def test_subdomain_compatible():
+    """Exercise a case where connecting is region-oblivious."""
+    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
+    bucket_name = 'wal-e-test-us-west-1-no-dots' + aws_access_key.lower()
+
+    cinfo = calling_format.from_bucket_name(bucket_name)
+
+    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+
+    with FreshBucket(bucket_name,
+                     host='s3-us-west-1.amazonaws.com',
+                     calling_format=connection.OrdinaryCallingFormat()) as fb:
+        fb.create(location='us-west-1')
+        conn = cinfo.connect(aws_access_key_id, aws_secret_access_key)
+
+        assert cinfo.region is None
+        assert cinfo.calling_format is connection.SubdomainCallingFormat
+        assert isinstance(conn.calling_format,
+                          connection.SubdomainCallingFormat)
+
+
 def test_ipv4_detect():
     """IPv4 lookalikes are not valid SubdomainCallingFormat names
 
