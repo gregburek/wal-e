@@ -1,3 +1,4 @@
+import gevent
 import pytest
 
 from wal_e import worker
@@ -205,3 +206,22 @@ def test_mark_done_fault():
         group.join()
 
     assert e.value is exp
+
+
+def test_greenlet_get_failure(monkeypatch):
+    """Inject fault into Greenlet.get, check .join forwards it."""
+    group = worker.WalTransferGroup(FakeWalUploader())
+    seg = FakeWalSegment('arbitrary')
+    group.start(seg)
+
+    err = MemoryError('bogus')
+
+    def raise_memory_error(*args, **kwargs):
+        raise err
+
+    monkeypatch.setattr(gevent.Greenlet, 'get', raise_memory_error)
+
+    with pytest.raises(MemoryError) as e:
+        group.join()
+
+    assert e.value is err
