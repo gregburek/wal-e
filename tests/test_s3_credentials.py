@@ -14,48 +14,6 @@ def never_use_aws_env_vars(monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
-@pytest.fixture
-def instance_metadata_iam(monkeypatch):
-    """Return generic instance metadata with IAM keys."""
-    from boto import utils
-
-    # Fixture for get_instance_metadata, copied from the boto test
-    # suite.
-    INSTANCE_CONFIG = {
-        'allowall': {
-            u'AccessKeyId': u'iam_access_key',
-            u'Code': u'Success',
-            u'Expiration': u'2012-09-01T03:57:34Z',
-            u'LastUpdated': u'2012-08-31T21:43:40Z',
-            u'SecretAccessKey': u'iam_secret_key',
-            u'Token': u'iam_token',
-            u'Type': u'AWS-HMAC'
-        }
-    }
-
-    monkeypatch.setattr(utils, 'get_instance_metadata',
-                        lambda: INSTANCE_CONFIG)
-
-
-@pytest.fixture
-def instance_metadata_no_iam(monkeypatch):
-    """Return generic instance metadata without IAM keys."""
-    from boto import utils
-
-    INSTANCE_CONFIG = {
-        'allowall': {
-            u'Code': u'Success',
-            u'Expiration': u'2012-09-01T03:57:34Z',
-            u'LastUpdated': u'2012-08-31T21:43:40Z',
-            u'Token': u'iam_token',
-            u'Type': u'AWS-HMAC'
-        }
-    }
-
-    monkeypatch.setattr(utils, 'get_instance_metadata',
-                        lambda: INSTANCE_CONFIG)
-
-
 def test_empty(monkeypatch):
     """Tests creds not specified at all."""
     cred = credentials.from_environment()
