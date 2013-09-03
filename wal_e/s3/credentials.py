@@ -20,22 +20,6 @@ class Argv(Source):
     """Credential from argument vector."""
 
 
-class InstanceProfileEnv(Source):
-    """Instance profile expansion.
-
-    Triggered by environment variable.
-    """
-    pass
-
-
-class InstanceProfileArgv(Source):
-    """Instance profile expansion.
-
-    Triggered by argument vector.
-    """
-    pass
-
-
 class KV(object):
     def __init__(self, name, value, providence):
         self.name = name
@@ -89,23 +73,6 @@ def from_argv(key, token):
                        KV('AWS_SECURITY_TOKEN', token, Argv))
 
 
-def from_instance_profile(key):
-    if key.providence is Environ:
-        providence = InstanceProfileEnv
-    elif key.providence is Argv:
-        providence = InstanceProfileArgv
-    else:
-        assert False
-
-    md = utils.get_instance_metadata()
-
-    key = KV('AWS_ACCESS_KEY_ID', md.get('AccessKeyId'), providence)
-    secret = KV('AWS_SECRET_ACCESS_KEY', md.get('SecretAccessKey'), providence)
-    token = KV('AWS_SECURITY_TOKEN', md.get('Token'), providence)
-
-    return Credentials(key, secret, token)
-
-
 def mask(lhs, rhs):
     """Overlay rhs onto lhs credentials
 
@@ -138,15 +105,4 @@ def search_credentials(args_key, args_token):
     argv_cred = from_argv(args_key, args_token)
     env_and_argv = mask(env_cred, argv_cred)
 
-    if env_and_argv.key.value == INSTANCE_PROFILE_USER_INPUT:
-        resolved = from_instance_profile(env_and_argv.key)
-
-        if (resolved.key.value is None or
-            resolved.secret.value is None or
-            resolved.secret.value is None):
-            raise exception.UserException(
-                msg='could not retrieve instance profile credentials')
-
-        return mask(env_and_argv, resolved)
-    else:
-        return env_and_argv
+    return env_and_argv
