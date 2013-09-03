@@ -36,138 +36,74 @@ class InstanceProfileArgv(Source):
     pass
 
 
-class IncompleteCredentials(exception.UserException):
-    """Exception raised when crendentials are verified.
+class KV(object):
+    def __init__(self, name, value, providence):
+        self.name = name
+        self.value = value
+        self.providence = providence
 
-    Rraised when either public/private portions of the credential are
-    not available.
-    """
-    pass
+    def __repr__(self):
+        return 'KV({0!r}, {1!r}, {2!r})'.format(self.name, self.value,
+                                                self.providence)
 
 
 class Credentials(object):
-    """Represents a public/private key pair
-
-    e.g. AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.  Also includes
-    the source of these credentials.
     """
-    def __init__(self, public, private,
-                 public_source, private_source):
-        assert issubclass(public_source, Source)
-        assert issubclass(private_source, Source)
 
-        self.public = public
-        self.private = private
-        self.public_source = public_source
-        self.private_source = private_source
+    e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SECURITY_TOKEN.
+    """
+    def __init__(self,
+                 key, secret, token):
+        self.key = key
+        self.secret = secret
+        self.token = token
 
-    @property
-    def is_complete(self):
-        """Return true if these credentials are not underspecified
+    def __str__(self):
+        return 'Credentials({0!r}, {1!r}, {2!r})'.format(
+            self.key, '[redacted]', self.token)
 
-        e.g. there is a public and secret key.  This is to say nothing
-        as to whether that key combination is going to be accepted or
-        not by AWS.
-        """
-        return ((self.public is not None
-                 # instance-profile must be expanded to a real
-                 # credential for a credential to be considered
-                 # complete.
-                 and self.public.lower() != INSTANCE_PROFILE_USER_INPUT) and
-                self.private is not None)
-
-    def raise_on_incomplete(self):
-        """Given an incomplete credential, raise a UserException
-
-        This UserException should include some text to help the user
-        figure out why the credentials are underspecified.
-        """
-        if self.is_complete:
-            return None
-
-        if self.public == INSTANCE_PROFILE_USER_INPUT:
-            raise exception.UserCritical(
-                msg='bug: unexpanded credentials passed to maybe_complain',
-                hint='report a bug to the wal-e project')
-
-        # Go about setting up the detail message.
-        def humanize_source(source):
-            """Provide human readable name of 'source'"""
-            if source is Environ:
-                return 'enviroment variable'
-            elif source is Argv:
-                return 'command line'
-            elif source is InstanceProfileEnv:
-                return 'instance profile, specified via environment variable'
-            elif source is InstanceProfileArgv:
-                return 'instance profile, specified via command line'
-            else:
-                raise exception.UserCritical(
-                    msg='bug: unexpected source of credential configuration',
-                    detail='source is: ' + repr(source),
-                    hint='report a bug to the wal-e project')
-
-        def emit_status(what, value, source):
-            """Provide status of passed credential component"""
-            if value is None:
-                return '{what} is not set'.format(what=what)
-            else:
-                # It is a deliberate design decision to not emit the
-                # contents of the public *or* private keys, because
-                # getting them swapped is all too easy, and that would
-                # compromise one's secrets in logs in that case.
-                return '{what} set by {source}'.format(
-                    what=what, source=humanize_source(source))
-
-        detail_lines = [
-            'The credentials passed to wal-e have this configuration:']
-        detail_lines.append(emit_status('AWS_ACCESS_KEY_ID',
-                                        self.public, self.public_source))
-        detail_lines.append(emit_status('AWS_SECRET_ACCESS_KEY',
-                                        self.private, self.private_source))
-        detail = '\n'.join(detail_lines)
-
-        # Finally, raise the formatted error.
-        raise IncompleteCredentials(
-            msg='wal-e cannot start: incomplete credentials passed',
-            detail=detail,
-            hint=('check your environment and command line options '
-                  'carefully to make sure keys are being passed properly'))
+    def __repr__(self):
+        return 'Credentials({0!r}, {1!r}, {2!r})'.format(
+            self.key, self.secret, self.token)
 
 
 def from_environment():
-    return Credentials(public=os.getenv('AWS_ACCESS_KEY_ID'),
-                       public_source=Environ,
-                       private=os.getenv('AWS_SECRET_ACCESS_KEY'),
-                       private_source=Environ)
+    def make(name):
+        val = os.getenv(name)
+        if val is None:
+            return KV(name, None, Environ)
+        else:
+            return KV(name, val, Environ)
+
+    key = make('AWS_ACCESS_KEY_ID')
+    secret = make('AWS_SECRET_ACCESS_KEY')
+    token = make('AWS_SECURITY_TOKEN')
+
+    return Credentials(key, secret,
+                       token)
 
 
-def from_argv(public):
-    return Credentials(public=public,
-                       public_source=Argv,
-                       private=None,
-                       private_source=Argv)
+def from_argv(key, token):
+    return Credentials(KV('AWS_ACCESS_KEY_ID', key, Argv),
+                       KV('AWS_SECRET_ACCESS_KEY', None, Argv),
+                       KV('AWS_SECURITY_TOKEN', token, Argv))
 
 
-def from_instance_profile(public_source):
-    if public_source is Environ:
-        source = InstanceProfileEnv
-    elif public_source is Argv:
-        source = InstanceProfileArgv
+def from_instance_profile(key):
+    if key.providence is Environ:
+        providence = InstanceProfileEnv
+    elif key.providence is Argv:
+        providence = InstanceProfileArgv
     else:
         assert False
 
     md = utils.get_instance_metadata()
 
-    public = md.get('AccessKeyId')
-    private = md.get('SecretAccessKey')
+    key = KV('AWS_ACCESS_KEY_ID', md.get('AccessKeyId'), providence)
+    secret = KV('AWS_SECRET_ACCESS_KEY', md.get('SecretAccessKey'), providence)
+    token = KV('AWS_SECURITY_TOKEN', md.get('Token'), providence)
 
-    cred = Credentials(public=public,
-                       private=private,
-                       public_source=source,
-                       private_source=source)
-
-    return cred
+    return Credentials(key, secret, token)
 
 
 def mask(lhs, rhs):
@@ -176,32 +112,41 @@ def mask(lhs, rhs):
     If the rhs has an undefined credential part (i.e. public/private =
     'None'), then fall back to the lhs's value.
     """
-    private = rhs.private
-    private_source = rhs.private_source
 
-    if private is None:
-        private = lhs.private
-        private_source = lhs.private_source
+    def mask_one(attrname):
+        lhs_atom = getattr(lhs, attrname)
+        rhs_atom = getattr(rhs, attrname)
 
-    public = rhs.public
-    public_source = rhs.public_source
+        if rhs_atom.value is None:
+            return lhs_atom
+        else:
+            return rhs_atom
 
-    if public is None:
-        public = lhs.public
-        public_source = lhs.public_source
+        assert False
 
-    return Credentials(public=public, private=private,
-                       public_source=public_source,
-                       private_source=private_source)
+    attrnames = ['key', 'secret', 'token']
+
+    kwargs = {}
+    for attrname in attrnames:
+        kwargs[attrname] = mask_one(attrname)
+
+    return Credentials(**kwargs)
 
 
-def search_credentials(public_from_args):
+def search_credentials(args_key, args_token):
     env_cred = from_environment()
-    argv_cred = from_argv(public_from_args)
-    env_argv = mask(env_cred, argv_cred)
+    argv_cred = from_argv(args_key, args_token)
+    env_and_argv = mask(env_cred, argv_cred)
 
-    if env_argv.public == INSTANCE_PROFILE_USER_INPUT:
-        resolved = from_instance_profile(env_argv.public_source)
-        return mask(env_argv, resolved)
+    if env_and_argv.key.value == INSTANCE_PROFILE_USER_INPUT:
+        resolved = from_instance_profile(env_and_argv.key)
+
+        if (resolved.key.value is None or
+            resolved.secret.value is None or
+            resolved.secret.value is None):
+            raise exception.UserException(
+                msg='could not retrieve instance profile credentials')
+
+        return mask(env_and_argv, resolved)
     else:
-        return env_argv
+        return env_and_argv
