@@ -8,16 +8,16 @@ INSTANCE_PROFILE_USER_INPUT = 'instance-profile'
 
 
 class Source(object):
-    # Marker type for sources of credentials
+    # Marker type for sources of config
     pass
 
 
 class Environ(Source):
-    """Credential from environment variable."""
+    """Config from environment variable."""
 
 
 class Argv(Source):
-    """Credential from argument vector."""
+    """Config from argument vector."""
 
 
 class KV(object):
@@ -31,24 +31,20 @@ class KV(object):
                                                 self.providence)
 
 
-class Credentials(object):
-    """
-
-    e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SECURITY_TOKEN.
-    """
-    def __init__(self,
-                 key, secret, token):
+class Config(object):
+    def __init__(self, key, secret, token, prefix):
         self.key = key
         self.secret = secret
         self.token = token
+        self.prefix = prefix
 
     def __str__(self):
-        return 'Credentials({0!r}, {1!r}, {2!r})'.format(
-            self.key, '[redacted]', self.token)
+        return 'Config({0!r}, {1!r}, {2!r}, {3!r})'.format(
+            self.key, '[redacted]', self.token, self.prefix)
 
     def __repr__(self):
-        return 'Credentials({0!r}, {1!r}, {2!r})'.format(
-            self.key, self.secret, self.token)
+        return 'Config({0!r}, {1!r}, {2!r}, {3!r})'.format(
+            self.key, self.secret, self.token, self.prefix)
 
 
 def from_environment():
@@ -62,22 +58,24 @@ def from_environment():
     key = make('AWS_ACCESS_KEY_ID')
     secret = make('AWS_SECRET_ACCESS_KEY')
     token = make('AWS_SECURITY_TOKEN')
+    prefix = make('WALE_S3_PREFIX')
 
-    return Credentials(key, secret,
+    return Config(key, secret,
                        token)
 
 
-def from_argv(key, token):
-    return Credentials(KV('AWS_ACCESS_KEY_ID', key, Argv),
-                       KV('AWS_SECRET_ACCESS_KEY', None, Argv),
-                       KV('AWS_SECURITY_TOKEN', token, Argv))
+def from_argv(key, token, prefix):
+    return Config(KV('AWS_ACCESS_KEY_ID', key, Argv),
+                  KV('AWS_SECRET_ACCESS_KEY', None, Argv),
+                  KV('AWS_SECURITY_TOKEN', token, Argv),
+                  KV('WALE_S3_PREFIX', prefix, Argv))
 
 
 def mask(lhs, rhs):
-    """Overlay rhs onto lhs credentials
+    """Overlay right-hand-side onto left-hand-side config
 
-    If the rhs has an undefined credential part (i.e. public/private =
-    'None'), then fall back to the lhs's value.
+    If the rhs has an undefined config part (i.e. "rhs.value is None"), then
+    fall back to the lhs's value.
     """
 
     def mask_one(attrname):
@@ -91,18 +89,18 @@ def mask(lhs, rhs):
 
         assert False
 
-    attrnames = ['key', 'secret', 'token']
+    attrnames = ['key', 'secret', 'token', 'prefix']
 
     kwargs = {}
     for attrname in attrnames:
         kwargs[attrname] = mask_one(attrname)
 
-    return Credentials(**kwargs)
+    return Config(**kwargs)
 
 
-def search_credentials(args_key, args_token):
-    env_cred = from_environment()
-    argv_cred = from_argv(args_key, args_token)
-    env_and_argv = mask(env_cred, argv_cred)
+def search_config(args_key, args_token, args_prefix):
+    env_cfg = from_environment()
+    argv_cfg = from_argv(args_key, args_token, args_prefix)
+    env_and_argv = mask(env_cfg, argv_cfg)
 
     return env_and_argv

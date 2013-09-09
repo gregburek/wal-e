@@ -80,10 +80,11 @@ import wal_e.log_help as log_help
 from wal_e import subprocess
 from wal_e.exception import UserException
 from wal_e.operator import s3_operator
-from wal_e.piper import popen_sp
-from wal_e.worker.psql_worker import PSQL_BIN, psql_csv_run
 from wal_e.pipeline import LZOP_BIN, PV_BIN, GPG_BIN
+from wal_e.piper import popen_sp
+from wal_e.s3 import config
 from wal_e.worker.pg_controldata_worker import CONFIG_BIN, PgControlDataParser
+from wal_e.worker.psql_worker import PSQL_BIN, psql_csv_run
 
 log_help.configure(
     format='%(name)-12s %(levelname)-8s %(message)s')
@@ -322,31 +323,30 @@ def main(argv=None):
         print pkgutil.get_data('wal_e', 'VERSION').strip()
         sys.exit(0)
 
+    cfg = config.search_config()
+
     # Attempt to read a few key parameters from environment variables
     # *or* the command line, enforcing a precedence order and
     # complaining should the required parameter not be defined in
     # either location.
-    secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    if secret_key is None:
+    if cfg.secret.value is None:
         logger.error(
             msg='no AWS_SECRET_ACCESS_KEY defined',
             hint='Define the environment variable AWS_SECRET_ACCESS_KEY.')
         sys.exit(1)
 
-    s3_prefix = args.s3_prefix or os.getenv('WALE_S3_PREFIX')
-
-    if s3_prefix is None:
+    if cfg.prefix.value is None:
         logger.error(
             msg='no storage prefix defined',
             hint=('Either set the --s3-prefix option or define the '
                   'environment variable WALE_S3_PREFIX.'))
         sys.exit(1)
 
-    if args.aws_access_key_id is None:
+    if args.key.value is None:
         aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
         if aws_access_key_id is None:
             logger.error(
-                msg='no storage prefix defined',
+                msg='no AWS_ACCESS_KEY_ID defined',
                 hint=('Either set the --aws-access-key-id option or define '
                       'the environment variable AWS_ACCESS_KEY_ID.'))
             sys.exit(1)
@@ -354,6 +354,7 @@ def main(argv=None):
         aws_access_key_id = args.aws_access_key_id
 
     # This will be None if we're not encrypting
+        
     gpg_key_id = args.gpg_key_id or os.getenv('WALE_GPG_KEY_ID')
 
     backup_cxt = s3_operator.S3Backup(aws_access_key_id, secret_key, s3_prefix,

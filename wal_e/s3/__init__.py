@@ -1,5 +1,5 @@
-from wal_e.s3.credentials import search_credentials
+from wal_e.s3.config import search_config
 
 __all__ = [
-    search_credentials,
+    search_config,
 ]
