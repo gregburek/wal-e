@@ -36,9 +36,10 @@ class S3Backup(object):
 
     def __init__(self,
                  aws_access_key_id, aws_secret_access_key, s3_prefix,
-                 gpg_key_id):
+                 aws_session_token, gpg_key_id):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
         self.gpg_key_id = gpg_key_id
 
         # Canonicalize the s3 prefix by stripping any trailing slash
@@ -55,7 +56,8 @@ class S3Backup(object):
 
     def new_connection(self):
         return self.cinfo.connect(self.aws_access_key_id,
-                                  self.aws_secret_access_key)
+                                  self.aws_secret_access_key,
+                                  self.aws_session_token)
 
     def backup_list(self, query, detail):
         """
@@ -143,12 +145,14 @@ class S3Backup(object):
                     .format(extended_version_url=extended_version_url)))
         s3_worker.uri_put_file(self.aws_access_key_id,
                                self.aws_secret_access_key,
+                               self.aws_session_token,
                                extended_version_url, StringIO(version),
                                content_encoding='text/plain')
         logger.info(msg='postgres version metadata upload complete')
 
         uploader = s3_worker.PartitionUploader(
             self.aws_access_key_id, self.aws_secret_access_key,
+            self.aws_session_token,
             backup_s3_prefix, per_process_limit, self.gpg_key_id)
 
         pool = worker.TarUploadPool(uploader, pool_size)
@@ -331,6 +335,7 @@ class S3Backup(object):
             sentinel_content.seek(0)
             s3_worker.uri_put_file(
                 self.aws_access_key_id, self.aws_secret_access_key,
+                self.session_token,
                 uploaded_to + '_backup_stop_sentinel.json',
                 sentinel_content, content_encoding='application/json')
         else:
@@ -355,6 +360,7 @@ class S3Backup(object):
         segment = worker.WalSegment(wal_path, explicit=True)
         uploader = s3_worker.WalUploader(self.aws_access_key_id,
                                          self.aws_secret_access_key,
+                                         self.aws_session_token,
                                          self.s3_prefix, self.gpg_key_id)
         group = worker.WalTransferGroup(uploader)
         group.start(segment)
@@ -402,6 +408,7 @@ class S3Backup(object):
 
         ret = s3_worker.do_lzop_s3_get(
             self.aws_access_key_id, self.aws_secret_access_key,
+            self.aws_session_token,
             s3_url, wal_destination, self.gpg_key_id is not None)
 
         logger.info(
