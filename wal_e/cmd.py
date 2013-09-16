@@ -331,6 +331,10 @@ def main(argv=None):
             hint='Define the environment variable AWS_SECRET_ACCESS_KEY.')
         sys.exit(1)
 
+    # Optional Security Token: is only necessary if one is using
+    # credentials that demand the token, such as AWS STS.
+    aws_session_token = os.getenv('AWS_SESSION_TOKEN')
+
     s3_prefix = args.s3_prefix or os.getenv('WALE_S3_PREFIX')
 
     if s3_prefix is None:
@@ -355,7 +359,7 @@ def main(argv=None):
     gpg_key_id = args.gpg_key_id or os.getenv('WALE_GPG_KEY_ID')
 
     backup_cxt = s3_operator.S3Backup(aws_access_key_id, secret_key, s3_prefix,
-                                      gpg_key_id)
+                                      aws_session_token, gpg_key_id)
 
     if gpg_key_id is not None:
         external_program_check([GPG_BIN])

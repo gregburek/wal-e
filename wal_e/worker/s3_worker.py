@@ -49,6 +49,7 @@ if not boto.config.has_option('Boto', 'http_socket_timeout'):
 
 def uri_put_file(aws_access_key_id,
                  aws_secret_access_key,
+                 aws_session_token,
                  s3_uri, fp, content_encoding=None):
     # Per Boto 2.2.2, which will only read from the current file
     # position to the end.  This manifests as successfully uploaded
@@ -60,7 +61,8 @@ def uri_put_file(aws_access_key_id,
     # in mind, assert it as a precondition for using this procedure.
     assert fp.tell() == 0
 
-    k = uri_to_key(aws_access_key_id, aws_secret_access_key, s3_uri)
+    k = uri_to_key(aws_access_key_id, aws_secret_access_key,
+                   aws_session_token, s3_uri)
 
     if content_encoding is not None:
         k.content_type = content_encoding
@@ -69,13 +71,15 @@ def uri_put_file(aws_access_key_id,
     return k
 
 
-def uri_to_key(aws_access_key_id, aws_secret_access_key, s3_uri):
+def uri_to_key(aws_access_key_id, aws_secret_access_key, aws_session_token,
+               s3_uri):
     assert s3_uri.startswith('s3://')
 
     url_tup = urlparse(s3_uri)
     bucket_name = url_tup.netloc
     cinfo = calling_format.from_bucket_name(bucket_name)
-    conn = cinfo.connect(aws_access_key_id, aws_secret_access_key)
+    conn = cinfo.connect(aws_access_key_id, aws_secret_access_key,
+                         aws_session_token)
     bucket = boto.s3.bucket.Bucket(connection=conn, name=bucket_name)
     return boto.s3.key.Key(bucket=bucket, name=url_tup.path)
 
@@ -89,9 +93,11 @@ def format_kib_per_second(start, finish, amount_in_bytes):
 
 class WalUploader(object):
     def __init__(self, aws_access_key_id, aws_secret_access_key,
+                 aws_session_token,
                  prefix, gpg_key_id):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
         self.prefix = prefix
         self.gpg_key_id = gpg_key_id
 
@@ -111,6 +117,7 @@ class WalUploader(object):
         # Upload and record the rate at which it happened.
         kib_per_second = _do_lzop_s3_put(self.aws_access_key_id,
                                          self.aws_secret_access_key,
+                                         self.aws_session_token,
                                          s3_url, segment.path,
                                          self.gpg_key_id)
 
@@ -131,9 +138,11 @@ class WalUploader(object):
 
 class PartitionUploader(object):
     def __init__(self, aws_access_key_id, aws_secret_access_key,
+                 aws_session_token,
                  backup_s3_prefix, rate_limit, gpg_key):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
         self.backup_s3_prefix = backup_s3_prefix
         self.rate_limit = rate_limit
         self.gpg_key = gpg_key
@@ -203,7 +212,9 @@ class PartitionUploader(object):
             def put_file_helper():
                 tf.seek(0)
                 return uri_put_file(self.aws_access_key_id,
-                                    self.aws_secret_access_key, s3_url, tf)
+                                    self.aws_secret_access_key,
+                                    self.aws_session_token,
+                                    s3_url, tf)
 
             # Actually do work, retrying if necessary, and timing how long
             # it takes.
@@ -223,6 +234,7 @@ class PartitionUploader(object):
 
 
 def _do_lzop_s3_put(aws_access_key_id, aws_secret_access_key,
+                    aws_session_token,
                     s3_url, local_path, gpg_key):
     """
     Compress and upload a given local path.
@@ -246,7 +258,8 @@ def _do_lzop_s3_put(aws_access_key_id, aws_secret_access_key,
 
         clock_start = time.clock()
         tf.seek(0)
-        k = uri_put_file(aws_access_key_id, aws_secret_access_key, s3_url, tf)
+        k = uri_put_file(aws_access_key_id, aws_secret_access_key,
+                         aws_session_token, s3_url, tf)
         clock_finish = time.clock()
 
         kib_per_second = format_kib_per_second(clock_start, clock_finish,
@@ -264,6 +277,7 @@ def write_and_close_thread(key, stream):
 
 
 def do_lzop_s3_get(aws_access_key_id, aws_secret_access_key,
+                   aws_session_token,
                    s3_url, path, decrypt):
     """
     Get and decompress a S3 URL
@@ -314,7 +328,8 @@ def do_lzop_s3_get(aws_access_key_id, aws_secret_access_key,
     @retry(retry_with_count(log_wal_fetch_failures_on_error))
     def download():
         with open(path, 'wb') as decomp_out:
-            key = uri_to_key(aws_access_key_id, aws_secret_access_key, s3_url)
+            key = uri_to_key(aws_access_key_id, aws_secret_access_key,
+                             aws_session_token, s3_url)
 
             pipeline = get_download_pipeline(PIPE, decomp_out, decrypt)
             g = gevent.spawn(write_and_close_thread, key, pipeline.stdin)
@@ -459,7 +474,8 @@ class BackupList(object):
         return key.get_contents_as_string()
 
     def __iter__(self):
-        bucket = self.s3_conn.get_bucket(self.layout.bucket_name())
+        bucket = self.s3_conn.get_bucket(self.layout.bucket_name(),
+                                         validate=False)
 
         # Try to identify the sentinel file.  This is sort of a drag, the
         # storage format should be changed to put them in their own leaf
