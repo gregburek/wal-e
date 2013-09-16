@@ -1,8 +1,6 @@
 import pytest
 
-from wal_e import s3
-from wal_e.s3 import config
-
+from wal_e import config
 
 @pytest.fixture(autouse=True)
 def never_use_aws_env_vars(monkeypatch):
@@ -68,7 +66,7 @@ def test_argv_instance_profile():
 
 def test_search_simple_no_argv():
     """Tests config search that doesn't rely on argv."""
-    cred = config.search_config(None, None)
+    cred = config.search(None, None)
 
     print cred.key.providence
     print cred.secret.providence
@@ -78,7 +76,7 @@ def test_search_simple_no_argv():
 
 
 def test_search_nothing_specified():
-    cred = s3.search_config(None, None)
+    cred = config.search(None, None)
 
     assert cred.key.value is None
     assert cred.key.providence is config.Environ
@@ -92,7 +90,7 @@ def test_search_full_env(monkeypatch):
     monkeypatch.setenv('AWS_ACCESS_KEY_ID', 'PUBLIC-BOGUS')
     monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'PRIVATE-BOGUS')
 
-    cred = s3.search_config(None, None)
+    cred = config.search(None, None)
 
     assert cred.key.value == 'PUBLIC-BOGUS'
     assert cred.key.providence is config.Environ
@@ -106,7 +104,7 @@ def test_search_env_argv_mix(monkeypatch):
     monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'SECRET-BOGUS')
     monkeypatch.setenv('AWS_SECURITY_TOKEN', 'TOKEN-BOGUS')
 
-    cred = s3.search_config('KEY-BOGUS', None)
+    cred = config.search('KEY-BOGUS', None)
 
     assert cred.key.value == 'KEY-BOGUS'
     assert cred.key.providence is config.Argv

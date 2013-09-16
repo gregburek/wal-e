@@ -75,12 +75,12 @@ import traceback
 
 import wal_e.log_help as log_help
 
+from wal_e import config
 from wal_e import subprocess
 from wal_e.exception import UserException
 from wal_e.operator import s3_operator
 from wal_e.pipeline import LZOP_BIN, PV_BIN, GPG_BIN
 from wal_e.piper import popen_sp
-from wal_e.s3 import config
 from wal_e.worker.pg_controldata_worker import CONFIG_BIN, PgControlDataParser
 from wal_e.worker.psql_worker import PSQL_BIN, psql_csv_run
 

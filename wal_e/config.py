@@ -60,8 +60,7 @@ def from_environment():
     token = make('AWS_SECURITY_TOKEN')
     prefix = make('WALE_S3_PREFIX')
 
-    return Config(key, secret,
-                       token)
+    return Config(key, secret, token, )
 
 
 def from_argv(key, token, prefix):
@@ -98,7 +97,7 @@ def mask(lhs, rhs):
     return Config(**kwargs)
 
 
-def search_config(args_key, args_token, args_prefix):
+def search(args_key, args_token, args_prefix):
     env_cfg = from_environment()
     argv_cfg = from_argv(args_key, args_token, args_prefix)
     env_and_argv = mask(env_cfg, argv_cfg)
